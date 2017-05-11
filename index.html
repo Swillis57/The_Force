@@ -296,7 +296,9 @@
                 <li><a href="#tabsHelp-4">Math</a></li>
                 <li><a href="#tabsHelp-5">GL</a></li>
                 <li><a href="#tabsHelp-6">Snippets</a></li>
-                <li><a href="#tabsHelp-7">Info</a></li>
+                <li><a href="#tabsHelp-7">SDF Reference</a></li>
+                <li><a href="#tabsHelp-8">SDF Snippets</a></li>
+                <li><a href="#tabsHelp-9">Info</a></li>
             </ul>
             <div id="tabsHelp-1">
                 <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
@@ -443,6 +445,44 @@ ft     = float
                 </pre>
             </div>
             <div id="tabsHelp-7">
+                <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
+uint raycastDepth = 255; // Maximum number of steps to take for raymarching
+float raycastEpsilon = 0.00001; // Comparison epsilon for raymarch functions
+
+sdfSphere(vec3 position, float scale)
+udfBox(vec3 position, vec3 bounds)
+udfRoundedBox(vec3 position, vec3 bounds, float cornerRadius)
+sdfBox(vec3 position, vec3 bounds)
+sdfTorus(vec3 position, vec2 t)
+sdfCylinder(vec3 position, vec3 bounds)
+sdfCone(vec3 position, vec2 bounds)
+sdfPlane(vec3 position, vec4 normal)
+sdfHexPrism(vec3 position, vec2 dim)
+sdfTriangularPrism(vec3 position, vec2 dim)
+sdfCapsule(vec3 position, vec3 a, vec3 b, float r)
+sdfCappedCylinder(vec3 position, vec2 dim)
+sdfCappedCone(vec3 position, vec3 c)
+sdfEllipsoid(vec3 position, vec3 radii)
+udfTriangle(vec3 position, vec3 a, vec3 b, vec3 c)
+udfQuad(vec3 position, vec3 a, vec3 b, vec3 c, vec3 d)
+
+sdfUnion(float a, float b) // Adds two SDFs together
+sdfSubtraction(float a, float b) // Subtracts area of SDF b from SDF a
+sdfIntersection(float a, float b) // Gives the area of intersection of SDFs a and b
+
+sdfRepeat(vec3 p, vec3 c)
+sdfTransform(vec3 p, mat4 m) // Translates and rotates an SDF by a matrix
+sdfScalePreMultiply(vec3 p, float s) // See SDF Snippets for scaling example
+sdfScalePostMultiply(float sdf, float s)
+                </pre>
+            </div>
+            <div id="tabsHelp-8">
+                <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
+raycast =           float raycast(mat4 camera, 
+
+                </pre>
+            </div>
+            <div id="tabsHelp-9">
                 <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
 // Created by: Shawn Lawson, http://shawnlawson.com
 
