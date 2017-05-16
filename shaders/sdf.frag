@@ -176,10 +176,21 @@ float udfQuad(vec3 rayPosition, vec3 a, vec3 b, vec3 c, vec3 d)
 // SDF Combination Funcs
 // =====================================================================================================================
 
+// IQ's smooth minimum - removes seams between the unioned SDFs
+// k = 32 : exponential
+// k = 0.1 = polynomial
+// k = 8 = power
+float smoothMin(float a, float b, float k)
+{
+    float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+    return mix(b, a, h) - k*h*(1.0-h);
+}
+
 // Adds two SDFs together
 float sdfUnion(float a, float b)
 {
-    return min(a, b);
+
+    return smoothMin(a, b, 0.1);
 }
 
 // Subtracts the area of SDF b from the area of SDF a
