@@ -446,40 +446,79 @@ ft     = float
             </div>
             <div id="tabsHelp-7">
                 <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
-uint raycastDepth = 255; // Maximum number of steps to take for raymarching
-float raycastEpsilon = 0.00001; // Comparison epsilon for raymarch functions
+int maxRaymarchSteps = 255; // Maximum number of steps to take for raymarching
+float raymarchEpsilon = 0.00001; // Comparison epsilon for raymarch functions
+float minRaymarchDepth = 0.0; // Minimum depth of ray (equivalent of camera near plane Z coord)
+float maxRaymarchDepth = 1000.0; // Maximum depth of ray (equivalent of camera far plane Z coord)
 
-sdfSphere(vec3 position, float scale)
-udfBox(vec3 position, vec3 bounds)
-udfRoundedBox(vec3 position, vec3 bounds, float cornerRadius)
-sdfBox(vec3 position, vec3 bounds)
-sdfTorus(vec3 position, vec2 t)
-sdfCylinder(vec3 position, vec3 bounds)
-sdfCone(vec3 position, vec2 bounds)
-sdfPlane(vec3 position, vec4 normal)
-sdfHexPrism(vec3 position, vec2 dim)
-sdfTriangularPrism(vec3 position, vec2 dim)
-sdfCapsule(vec3 position, vec3 a, vec3 b, float r)
-sdfCappedCylinder(vec3 position, vec2 dim)
-sdfCappedCone(vec3 position, vec3 c)
-sdfEllipsoid(vec3 position, vec3 radii)
-udfTriangle(vec3 position, vec3 a, vec3 b, vec3 c)
-udfQuad(vec3 position, vec3 a, vec3 b, vec3 c, vec3 d)
+vec3 perspectiveRayDirection(float fov) // Computes a perspective ray direction given a field of view angle (degrees)
+
+sdfSphere(vec3 rayPosition, float scale)
+udfBox(vec3 rayPosition, vec3 bounds)
+udfRoundedBox(vec3 rayPosition, vec3 bounds, float cornerRadius)
+sdfBox(vec3 rayPosition, vec3 bounds)
+sdfTorus(vec3 rayPosition, vec2 t)
+sdfCylinder(vec3 rayPosition, vec3 bounds)
+sdfCone(vec3 rayPosition, vec2 bounds)
+sdfPlane(vec3 rayPosition, vec4 normal)
+sdfHexPrism(vec3 rayPosition, vec2 dim)
+sdfTriangularPrism(vec3 rayPosition, vec2 dim)
+sdfCapsule(vec3 rayPosition, vec3 a, vec3 b, float r)
+sdfCappedCylinder(vec3 rayPosition, vec2 dim)
+sdfCappedCone(vec3 rayPosition, vec3 c)
+sdfEllipsoid(vec3 rayPosition, vec3 radii)
+udfTriangle(vec3 rayPosition, vec3 a, vec3 b, vec3 c)
+udfQuad(vec3 rayPosition, vec3 a, vec3 b, vec3 c, vec3 d)
 
 sdfUnion(float a, float b) // Adds two SDFs together
 sdfSubtraction(float a, float b) // Subtracts area of SDF b from SDF a
 sdfIntersection(float a, float b) // Gives the area of intersection of SDFs a and b
 
 sdfRepeat(vec3 p, vec3 c)
-sdfTransform(vec3 p, mat4 m) // Translates and rotates an SDF by a matrix
-sdfScalePreMultiply(vec3 p, float s) // See SDF Snippets for scaling example
-sdfScalePostMultiply(float sdf, float s)
+sdfTransform(vec3 p, mat4 m) // Translates and rotates an SDF by a matrix (matrix cannot contain any scaling)
+sdfScalePremultiply(vec3 p, float s) // Scales ray position
+sdfScalePostmultiply(float sdf, float s) // Scales result from SDF that was passed premultiplied position
                 </pre>
             </div>
             <div id="tabsHelp-8">
                 <pre class="codeHighlight" ace-mode="ace/mode/glsl" ace-theme="ace/theme/monokai">
-raycast =           float raycast(mat4 camera, 
+// Raymarching constants
+constants =         const int maxRaymarchSteps = 255;
+                    const float minRaymarchDepth = 0.0;
+                    const float maxRaymarchDepth = 1000.0;
 
+// Returns distance to the nearest point on the given SDF
+// Must paste "constants" snippet above this function
+raymarch =          float raymarchSDF(vec3 rayOrigin, vec3 rayDir) {
+                        float depth = minRaymarchDepth;
+
+                        for (int i = 0; i < maxRaymarchSteps; i++) {
+                            vec3 currentRayPosition = rayOrigin + rayDir * depth;
+                            float sdfDist = /* Your SDF scene function here; see scene snippet */;
+                            if (sdfDist < raymarchEpsilon) return depth;
+                            depth += sdfDist;
+                            if (sdfDist >= maxRaymarchDepth) return maxRaymarchDepth;
+                        }
+                        return maxRaymarchDepth;
+                    }
+
+// SDF scene template
+scene =             float sceneSDF(vec3 currentRayPosition) {
+                        float s = sdfSphere(currentRayPosition, 1.0); // Sphere at origin with radius 1.0
+                        float b = sdfBox(currentRayPosition, vec3(1.0, 1.0, 1.0)); // Box at origin
+                        return sdfUnion(s, b); // Combine both into a single sdf area
+                    }
+
+normal =            vec3 sdfNormal(vec3 eyePos, vec3 dir, float dist) {
+                        vec3 rayPos = eyePos + dir*dist;
+                        // Replace "sdfFunc" with your SDF scene function
+                        vec3 eps = vec3(raymarchEpsilon, 0.0, 0.0);
+                        return normalize(vec3(
+                            sdfFunc(rayPos + eps.xyz) - sdfFunc(rayPos - eps.xyz),
+                            sdfFunc(rayPos + eps.yxz) - sdfFunc(rayPos - eps.yxz),
+                            sdfFunc(rayPos + eps.yzx) - sdfFunc(rayPos - eps.yzx)
+                        ));
+                    }
                 </pre>
             </div>
             <div id="tabsHelp-9">
