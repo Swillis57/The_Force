@@ -1,9 +1,44 @@
 precision lowp float;
 
-uint raycastDepth = 255;
-float raycastEpsilon = 0.00001;
+float raymarchEpsilon = 0.0001;
 
+vec3 perspectiveRayDirection(float fov)
+{
+    vec2 centeredCoords = gl_FragCoord.xy - resolution.xy / 2.0;
+    float z = resolution.y / tan(radians(fov) / 2.0);
+    return normalize(vec3(centeredCoords, -z)); //Negate z because forward in GL NDC is negative
+}
 
+mat3 lookAt(vec3 eyePos, vec3 lookAtPos, vec3 up)
+{
+    vec3 forward = normalize(lookAtPos - eyePos);
+    vec3 side = normalize(cross(forward, up));
+    vec3 correctedUp = normalize(cross(side, forward));
+    return mat3(
+        side,
+        correctedUp,
+        -forward
+    );
+}
+
+mat3 rotationMatrix(float yaw, float pitch, float roll)
+{
+    yaw = radians(yaw);
+    pitch = radians(pitch);
+    roll = radians(roll);
+
+    mat3 rX = mat3(1.0, 0, 0, 0, cos(pitch), sin(pitch), 0, -sin(pitch), cos(pitch));
+    mat3 rY = mat3(cos(yaw), 0, -sin(yaw), 0, 1.0, 0, sin(yaw), 0, cos(yaw));
+    mat3 rZ = mat3(cos(roll), sin(roll), 0, -sin(roll), cos(roll), 0, 0, 0, 1.0);
+    return rZ * rY * rX;
+}
+
+mat4 translationMatrix(vec3 translation)
+{
+    mat4 m = mat4(1.0);
+    m[3] = vec4(translation, 1.0);
+    return m;
+}
 
 // Functions from Inigo Quilez's SDF function reference: http://iquilezles.org/www/articles/distfunctions/distfunctions.htm
 // SDF Object funcs ====================================================================================================
@@ -43,13 +78,13 @@ float sdfCone(vec3 rayPosition, vec2 bounds)
 {
     bounds = normalize(bounds);
     float q = length(rayPosition.xy);
-    return dot(c, vec2(q, rayPosition.z));
+    return dot(bounds, vec2(q, rayPosition.z));
 }
 
 float sdfPlane(vec3 rayPosition, vec4 normal)
 {
     normal = normalize(normal);
-    return dot(rayPosition, n.xyz) + n.w;
+    return dot(rayPosition, normal.xyz) + normal.w;
 }
 
 float sdfHexPrism(vec3 rayPosition, vec2 dim)
@@ -66,7 +101,7 @@ float sdfTriangularPrism(vec3 rayPosition, vec2 dim)
 
 float sdfCapsule(vec3 rayPosition, vec3 a, vec3 b, float r)
 {
-    vec3 pa = p - a, ba = b - a;
+    vec3 pa = rayPosition - a, ba = b - a;
     float h = clamp(dot(pa,ba)/dot(ba,ba), 0.0, 1.0);
     return length(pa - ba*h) - r;
 }
@@ -90,10 +125,10 @@ float sdfCappedCone(vec3 rayPosition, vec3 c)
 
 float sdfEllipsoid(vec3 rayPosition, vec3 radii)
 {
-     return (length(rayPosition/radii) - 1.0) * min(min(r.x, r.y), r.z);
+     return (length(rayPosition/radii) - 1.0) * min(min(radii.x, radii.y), radii.z);
 }
 
-float dot2(vec3 v) { return dot(v,v); }
+float length2(vec3 v) { return dot(v,v); }
 float udfTriangle(vec3 rayPosition, vec3 a, vec3 b, vec3 c)
 {
     vec3 ba = b - a; vec3 pa = rayPosition - a;
@@ -107,11 +142,11 @@ float udfTriangle(vec3 rayPosition, vec3 a, vec3 b, vec3 c)
      sign(dot(cross(ac,nor),pc))<2.0)
      ?
      min( min(
-     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
-     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb)),
-     dot2(ac*clamp(dot(ac,pc)/dot2(ac),0.0,1.0)-pc))
+     length2(ba*clamp(dot(ba,pa)/length2(ba),0.0,1.0)-pa),
+     length2(cb*clamp(dot(cb,pb)/length2(cb),0.0,1.0)-pb)),
+     length2(ac*clamp(dot(ac,pc)/length2(ac),0.0,1.0)-pc))
      :
-     dot(nor,pa)*dot(nor,pa)/dot2(nor));
+     dot(nor,pa)*dot(nor,pa)/length2(nor));
 }
 
 float udfQuad(vec3 rayPosition, vec3 a, vec3 b, vec3 c, vec3 d)
@@ -129,12 +164,12 @@ float udfQuad(vec3 rayPosition, vec3 a, vec3 b, vec3 c, vec3 d)
      sign(dot(cross(ad,nor),pd))<3.0)
      ?
      min( min( min(
-     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
-     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb)),
-     dot2(dc*clamp(dot(dc,pc)/dot2(dc),0.0,1.0)-pc)),
-     dot2(ad*clamp(dot(ad,pd)/dot2(ad),0.0,1.0)-pd))
+     length2(ba*clamp(dot(ba,pa)/length2(ba),0.0,1.0)-pa),
+     length2(cb*clamp(dot(cb,pb)/length2(cb),0.0,1.0)-pb)),
+     length2(dc*clamp(dot(dc,pc)/length2(dc),0.0,1.0)-pc)),
+     length2(ad*clamp(dot(ad,pd)/length2(ad),0.0,1.0)-pd))
      :
-     dot(nor,pa)*dot(nor,pa)/dot2(nor));
+     dot(nor,pa)*dot(nor,pa)/length2(nor));
 }
 
 // =====================================================================================================================
@@ -150,7 +185,7 @@ float sdfUnion(float a, float b)
 // Subtracts the area of SDF b from the area of SDF a
 float sdfSubtraction(float a, float b)
 {
-    return max(-a, b);
+    return max(a, -b);
 }
 
 // Gives the area overlapped by both SDFs a and b
@@ -166,30 +201,42 @@ float sdfIntersection(float a, float b)
 // =====================================================================================================================
 
 // Repeats the SDF starting at rayPosition p with frequency modulated by c
-float sdfRepeat(vec3 p, vec3 c)
+vec3 sdfRepeat(vec3 p, vec3 c)
 {
     return mod(p, c) - 0.5 * c;
 }
 
 // Rotates and translates an SDF rayPosition by a matrix m
-float sdfTransform(vec3 p, mat4 m)
+vec3 sdfTransform(vec3 p, mat4 m)
 {
-    return invert(m)*p;
+    return (m*vec4(p, 1.0)).xyz;
 }
 
 // Performs pre-multiply step to scale an SDF
-vec3 sdfScalePreMultiply(vec3 p, float s)
+vec3 sdfScalePremultiply(vec3 p, float s)
 {
-    return p * (1/s).rrr;
+    return p * (1.0/s);
 }
 
 //Performs post-multiply step to scale an SDF
-float sdfScalePostMultiply(float sdf, float s)
+float sdfScalePostmultiply(float sdf, float s)
 {
     return sdf * s;
 }
 
+// =====================================================================================================================
+// Misc Lighting Functions
+// =====================================================================================================================
 
+float lambertDiffuse(vec3 normal, vec3 lightDir)
+{
+    return clamp(dot(normal, lightDir), 0.0, 1.0);
+}
 
-
+float blinnPhongSpecular(vec3 viewDir, vec3 normal, vec3 lightDir, float specPower)
+{
+    vec3 h = normalize(-normalize(viewDir) + lightDir);
+    float angle = max(dot(normal, h), 0.0);
+    return pow(angle, specPower);
+}
 
