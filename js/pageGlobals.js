@@ -984,7 +984,7 @@ $( document ).ready(function()
     if (typeof(Storage) !== "undefined" && typeof(localStorage.lastValidCode) !== "undefined"){
         editor.setValue(localStorage.lastValidCode,-1);
     }else{
-        editor.setValue("void main () {\n\tgl_FragColor = vec4(black, 1.0);\n}", -1);
+        editor.setValue(fsNew, -1);
     }
    
     // mCodeMirror.on("drop", function( mCodeMirror, event )

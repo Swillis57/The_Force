@@ -56,7 +56,8 @@ function createGlContext() {
         $.ajax({ url: "shaders/screen.vert", dataType: "text" }),
         $.ajax({ url: "shaders/screen.frag", dataType: "text" }),
         $.ajax({ url: "shaders/header.frag", dataType: "text" }),
-        $.ajax({ url: "shaders/sdf.frag", dataType: "text" })).done(function(d, v, f, h, sh) {
+        $.ajax({ url: "shaders/sdf.frag", dataType: "text" }),
+        $.ajax({ url: "shaderExperiments/BasicSDF.glsl", dataType: "text" })).done(function(d, v, f, h, sh, ds) {
 
         //build screen shader
         var res = createShader(v[0], f[0]);
@@ -111,6 +112,7 @@ function createGlContext() {
         vsScreen = v[0];
         mHeader = h[0] + sh[0];
         vsDraw = d[0];
+        fsNew = ds[0];
         var res = newShader(vsDraw, fsNew);
         if (res.mSuccess === false) {
             console.log(res.mInfo);
